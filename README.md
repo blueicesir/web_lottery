@@ -1,6 +1,5 @@
-# N年前写的年会抽奖程序
+# fork fouber N年前写的年会抽奖程序，做了少许修改。
 
-[demo](https://fouber.github.io/lottery/)
 
 fork from github.com/fouber/lottery
 
