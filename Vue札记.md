@@ -1,11 +1,11 @@
 ### Vue札记，根据lottery的项目学习Vue  
-(```)
+``
 v-for="(val,key) in dicts"  
 @click="onClick(val)"  
 class="pure-button"  
 :id="getBtnID(index)"  
 :class="{'button-error':getBtnID(key)==selected_id}"  
-(```)
+``  
 {{应用值}}  
 
 ### 创建一个Vue实例 vm ViewModel  
@@ -686,3 +686,405 @@ new Vue({
 
 </div>
 (```)
+
+
+** 在遍历对象时，会按Object.keys()的结果遍历，但不保证结果在不同的Javascript引擎下都一致 **  
+
+### 维护状态  
+当Vue正在更新使用 v-for 渲染的元素列表时，它默认使用就地更新的策略，如果数据项的顺序被改变，Vue将不会移动DOM元素来匹配数据项的顺序，而是就地更新每个元素，并确保他们在每个索引位置正确的渲染。
+
+需要默认修改上述行为特性，需要给Vue一个提示，以便它能跟踪每个节点的省分，从而重用和重新排序现有的元素，你需要为每个项提供一个唯一的Key属性。  
+
+<div v-for="item in items" v-bind:key="item.id">  
+</div>  
+
+** 建议尽可能的使用 v-for 时提供的 key attribute，除非遍历输出的DOM内容非常简单，或者是刻意依赖默认行为上获得性能上的提升。**  
+
+
+不要使用对象或数组之类的非基础类型作为 v-for 的 key。请使用字符串或数字类型的值。  
+
+### 数组更新检测  
+#### 编译方法(mutation method)  
+Vue将被侦听的数组的变异方法进行包装，所以他们也将会触发视图的更新，这些被包裹和包装的方法如下：  
++ push()
++ pop()
++ shift()
++ unshift()
++ splice()
++ sort()
++ reverse()
+  
+你可以在浏览器控制台，对前面例子的 items 数组尝试调用变异方法。比如：
+` example1.items.push({mesasge:'Baz'}) `  
+更新之后会导致前端的list发生变化。  
+
+
+### 替换数组  
+变异方法，顾名思义，会改变调用了这些方法的原始数组，相比之下也有非变异(non-mutating method)方法。
+例如:filter(),concat()和slice(),他们不会给变元素数组，而总是反馈一个新数组，当使用非变异方法时，可以用新数组提花那就数组。  
+(```)
+example1.items=example1.items.filter(function(item){return item.message.match(/Foo/)})
+(```)
+
+
+### 注意事项  
+由于javascript的限制，Vue不能检测一下数组的变动：  
++1 但你那你用索引设置一个数组时，例如：vm.items[indexOfItem]=newValue
++2 但你你修改数组的长度时，例如：vm.items.length=newLength
+
+
+例如：  
+var vm=new Vue({
+  data:{
+    items:['a','b','c']
+  }
+})
+
+vm.items[1]='x' // 这种方式不是响应式的，Vue无法检测到对应的数据变化
+vm.items.length=2 // 这个也不是响应式的。  
+
+为了解决上述问题，可以送如下方式触发响应式状态更新：  
+Vue.set(vm.items,indexOfItem,newValue)
+
+或者
+vm.items.splice(indexOfItem,1,newValue)
+
+也就是你可以使用实例方法 vm.$set()或者全局伏安法Vue.set()的一个别名  
+vm.$set(vm.items.indexOfItem,newValue)
+为了解决第二类问题你可以使用splice:   
+vm.items.splice(newLength)  
+  
+  
+### 对象变更检测注意事项  
+由于Javascript的限制，Vue不能检测到对象属性的添加或删除  
+var vm=new Vue({
+  data:{
+    a:1
+  }
+})  
+
+vm.a 是响应式的
+vm.b=2 不是响应式的，因为在Vue生成实例时它不存在，如果实例已经创建，Vue不允许动态的添加根级别的响应式属性，但是我们可以使用Vue.set(object,propertyname,value)方法向嵌套对象添加行吟诗属性。  
+
+
+var vm=new Vue({
+  data:{
+    userProfile:{
+      name:'Anika'
+    }
+  }
+})
+
+你可以添加一个新的age属性嵌套到userProfile中。  
+Vue.set(vm.userProfile,'age',27)
+
+
+你还可以使用实例方法：
+vm.$set()它只是全局Vue.set()的别名。  
+vm.$set(vm.userProfile,'age',27)  
+
+一次添加多个后期响应式属性，可以使用如下方法：
+vm.userProfile=Object.assign({},vm.userProfile,{age:27,favoriteColor:'Vue Green'})  
+
+
+### 显示过滤、排序后的结果  
+有时我们需要显示一个数组经过过滤或排序后的版本，而不实际改变或重置原始数据，在这种情况下我们可以创建一个计算属性，来返回过滤或排序后的数组。  
+<li v-for="n in evenNumbers">{{n}}</li>
+
+data:{
+  numbers:[1,2,3,4,5]
+},
+computed:{
+  evenNumbers:function(){
+    return this.numbers.filter(function(number){return number%2===0})
+  }
+}  
+
+在计算属性不使用的情况下，可以使用一个方法：  
+data:{
+  numbers:[1,2,3,4,5,6]
+},
+methods:{
+  event:function(numbers){\
+    return numbers.filter(function(number){
+      return number%2===0
+      })
+  }
+}  
+
+
+## 在 v-for 里使用值范围  
+v-for 也可以接受整数，在这种情况下，它会把模板重复对应次数：  
+<div>
+  <span v-for="n in 10">{{n}}</span>
+</div>
+
+
+
+### 在 <template>上使用 v-for  
+  
+类似于 v-if 你也可以利用带有 v-for 的<template>来循环渲染一段包含多个元素的内容：  
+这样template中使用v-for重复li
+<ul>
+    <template v-for="item in items">
+      <li>{{item.msg}}</li>
+      <li class="divider" role="presentation"></li>
+    </template>
+</ul>
+
+
+**注意我们不推荐在同一元素上使用v-if和v-for**
+
+当v-if和v-for处于同一节点时，v-for拥有更高的的优先级，这意味着v-if将分别重复运行与每个v-for循环中。
+
+<li v-for="todo in todos" v-if"!todo.isComplete">
+  {{ todo }}
+</li>
+
+上述代码只渲染未完成的todo  
+如果你的目的是有条件的跳过循环的执行，那么可以将v-if置于元素（或<template>）上。例如：  
+<ul v-if"todos.length">  
+  <li v-for="todo in todos">
+    {{todo}}
+  </li>
+</ul>
+<p v-else>No todos left!</p>  
+
+### 在组件上使用v-for  
+在主定义组件上，你可以像在任何普通元素上一样使用v-for  
+<my-component v-for="item in items" :key="item.id"></my-component>  
+
+
+** 在2.2.0+版本你，但组件上使用 v-for时，key现在是必须的 **
+然而，任何数据都不会主动传递到组件中，因为组件有自己独立的作用域。为了把迭代数据传递到组件中，我们需要使用prop：  
+<my-component
+v-for="(item,index) in items"
+v-bind:item="item"
+v-bind:index="index"
+v-bind:key="item.id"
+></my-component>
+
+不自动将item注入到组件里的原因是，这回使得组件与v-for的运行紧密耦合。明确组件数据的来源能够使组件在其它场合重复使用。
+
+----
+
+下面是一个简单todo列表的完整例子：  
+<div id="todo-list-example">
+   <form v-on:submit.prevent="addNewTodo">
+     <label for="new-todo">Add a todo</label>
+     <input 
+            v-modle="newTodoText"
+            id="new-todo"
+            placeholder="E.g.Fee the cat"
+      >
+     <button>Add</button>
+  </form>
+  <ul>
+     <li
+         **is="todo-item"**
+         v-for="(todo,index) in todos"
+         v-bind:key="todo.id"
+         v-bind:title="todo.title"
+         v-on:remove="todos.splice(index,1)"
+       ></li>
+  </ul>
+</div>   
+
+
+### 定义组件  
+Vue.component('todo-item',{
+  template:'\
+  <li>\
+  {{title}}\
+  <button v-on:click="$emit(\'remove\')">Remove</button>\
+  </li>\
+  ',
+  props:['title'] // 这里定义了传入组件的属性
+})
+
+
+new Vue({
+  el:'#todo-list-example',
+  data:{
+    newTodoText:'',
+    todos:[
+      {id,1,title:'Do the dishes'},
+      {id:2,title'take out the trash},
+    ],
+    nextTodoId:3
+  },
+  methods:{
+    addNewTodo:function(){
+      this.todos.push({id:this.nextTodoId++,title:this.newTodoText})
+      this.newTodoText=''
+    }
+  }
+})
+
+
+### 事件处理  
+可以使用v-on指令监听DOM事件，并在触发时运行一些Javascript代码。  
+<div id="example-1">
+  <button v-on:click="counter+=1">Add 1</button>
+  <p>The button above has been clicked {{ counter}} times.</p>
+</div>
+
+var example1=new Vue({
+  el:'#example-1',
+  data:{
+    counter:0
+  }
+})
+
+### 事件处理方法
+许多事件处理方法更为复杂，卸载v-on指令中是不可行的，因此v-on还可以接受一个需要调用放的名称：  
+<div id="example-2">
+  <button v-on:click="greet">Greet</button>
+</div>
+
+var example2=new Vue({
+  el:'#example-2',
+  data:{
+    name:'Vue.js'
+  },
+  methods:{
+    greet:function(event){
+      alert("Hello "+this.name+"!")
+      if(event){
+        alert(event.target.tagName)
+      }
+    }
+  }
+})  
+
+
+也可以直接调用
+example2.greet()  
+
+
+### 内联处理器中的方法，并传递参数  
+<div id="example-3">
+  <button v-on:click="say('hi')">Sai hi</button>
+  <button v-on:click="say('what'">Say what</button>
+</div>
+
+new Vue({
+  el:'#example-3',
+  methods:{
+    say:function(message){
+      alert(message)
+    }
+  }
+})  
+
+
+**有时我们需要在内联语句中原始访问DOM事件，可以使用特殊的变量$event***  
+<button v-on:click=warn('FFF'),$event)">Submit</button>  
+
+methods:{
+  warn:function(mesasge,event){
+    if(event){
+      event.preventDefault()
+    }
+    alert(message)
+  }
+}
+
+
+
+### 事件修饰符  
+在事件处理程序中调用 event.preventDefault() 或 event.stopPropagation() 是非常常见的。
+建议方法只是纯粹的数据逻辑，而不是去处理DOM事件细节。  
+为了解决这个问题，Vue.js为v-on提供了事件修饰符。  
+-.stop # 阻止单击事件继续传播 <a v-on:click.stop="doThis"></a>
+-.prevent # 提交事件不再重载页面 <form v-on:submit.prevent="OnSubmit"></form>
+
+修饰符可以串联 <a v-on:click.stop.prevent="doThat"></a>  
+也可以只有修饰符 例如:<form v-on:click.stop.prevent></form>
+
+-.capture # 添加事件监听器使用事件捕获模式，即内部元素触发的事件先处理，然后才交由内部元素进行处理。
+-.self # 只有event.target是当前元素时触发处理函数，即内部元素触发的事件不触发。<div v-on:click.self="doThat">..</div>
+-.once # 只会触发一次
+-.passive  # Vue 2.3.0新增了passive修饰符，滚动事件会立即触发，而不等待onScroll完成。提高了移动端的性能。
+
+**修饰符顺序很重要，会影响相应的代码产生顺序**
+v-on:click.prevent.self 会阻止所有的点击  
+v-on:click.self.prevent 智慧阻止对元素自身的点击。  
+
+
+** 不要把.passive和.prevent一起使用，因为.prevent将会被忽略，同时浏览器可能会提示一个警告 **
+
+**.passive会告诉浏览器你不想组织事件的默认行为**  
+
+
+
+### 按键修饰符  
+在监听假盘事件时，我们需要详细检查按键，Vue允许为v-on在监听键盘事件时添加按键修饰符：  
+<input v-on:keyup.enter="submit">表示只有按回车时响应vm.submit()函数。  
+你也可以直接将KeyboardEvent.key暴露的任意有效按键转换为kebab-case来作为修饰符。  
+<iniput v-on:keyup.page-down="onPageDown">  
+  
+### 按键码  
+KeyCode的时间已经被废弃了，并可能会被最新的浏览器支持，使用KeyCode特性也是允许的：  
+<input v-on:keyup.13="submit">
+
+按键别名：  
++ .enter
++ .tab
++ .delete
++ .space
++ .esc
++ .up
++ .left
++ .right
+
+
+你还可以通过全局 config.KeyCodes 对象的自定义按键修饰符别名：  
+Vue.config.keyCodes.f1=112  
+
+### 系统修饰键  
+2.1.0新增可以用如下修饰符来实现仅在按下响应按键时才出发鼠标后键盘事件的监听器。  
+.ctrl
+.alt
+.shift
+.meta (OSX 系统对应 command按键，Windows对应视窗按键)
+
+
+
+<input @keyup.alt.67="claer"> 表示Alt+C
+<div @click.ctrl="doSomething">Do something</div> Ctrl+Click
+
+
+### .exact 修饰符  
+.exact 修饰符允许你控制由精确的系统修饰符组合出发的事件。  
+<button @click.ctrl="onClick">A</button> Alt或Shift被同时按下会触发。
+
+<button @click.ctrl.exact="onCtrlClick">A</button> 只有Ctrl被按下时才触发。  
+
+<button @click.exact="onClick">A</button> 没有任何系统修饰符被按下时才触发。
+
+
+### 鼠标修饰符  
+2.2.0新增  
++ .left
++ .right
++ .middle
+  
+**当一个ViewModel被销毁时，所有的事件处理器都会自动被删除，你无需担心如何清理他们**
+
+### 表单输入绑定  
+
+你可以用 v-model 指定在表单 <input>、<textarea>、<select>元素上创建双向数据绑定。
+它会根据空间类型自动选择正确的方法来更新元素。v-model本质上不过是语法糖。  
+
+
+v-model会忽略所有表单元素的vlaue、checked、selected特性的初始值而总是将Vue实例的数据作为数据来源。
+你应该在Javascript在组件中的data选项中声明初始化值。  
+
+
+
+
+
+
+
+
