@@ -1,12 +1,12 @@
 ### Vue札记，根据lottery的项目学习Vue  
-``
+```
 v-for="(val,key) in dicts"  
 @click="onClick(val)"  
 class="pure-button"  
 :id="getBtnID(index)"  
 :class="{'button-error':getBtnID(key)==selected_id}"  
-``  
-{{应用值}}  
+```  
+{{data中的变量}}  
 
 ### 创建一个Vue实例 vm ViewModel  
 (```)
@@ -1078,13 +1078,535 @@ Vue.config.keyCodes.f1=112
 它会根据空间类型自动选择正确的方法来更新元素。v-model本质上不过是语法糖。  
 
 
-v-model会忽略所有表单元素的vlaue、checked、selected特性的初始值而总是将Vue实例的数据作为数据来源。
+v-model会忽略所有表单元素的value、checked、selected特性的初始值而总是将Vue实例的数据作为数据来源。
 你应该在Javascript在组件中的data选项中声明初始化值。  
 
 
+v-model在内部为不同的输入元素使用不同的属性并抛出不同的事件:  
++ text和textarea元素使用value属性和input事件。  
++ checkbox和radio使用checked属性和change事件。  
++ select字段将value作为prop并将change作为事件。  
+
+**对于中日韩等输入法，v-model默认不会在输入过程中获得更新，如果需要在输入过程中获取请使用input事件**  
+
+### 文本  
+<input v-model="message" placeholder="edit me">  
+<p>Message is:{{message}}</p>  
+
+### 多行文本  
+<textarea v-model="mesasge" placeholder="add multiple lines"></textarea>  
+**在文本区域插值<textarea>{{text}}</textarea>并不会生效，应使用v-model替代。  **
+
+**多选框绑定到同一个数组**
+
+data:{
+  checkedNames:[]
+}
+
+
+**多选框应该绑定到 data:{ select:''}字符串类型**
+
+**select多选时绑定到一个数组**  
+<div id="example-6">
+  <select v-model="selected" multiple style="width:50px;">
+    <option>A</option>
+    <option>B</option>
+    <option>C</option>
+  </select>
+  <br>
+</div>
+
+new Vue({
+  el:"#example-6",
+  data:{
+    selected:[]
+  }
+})
+
+
+用v-for渲染的动态选项：  
+<select v-model="selected">
+  <option v-for="option in options" v-bind:value="option.value">
+    {{option.text}}
+  </option>
+</select>
+<span>Selected:{{selected}}</span>
+
+
+new Vue({
+  el:'...',
+  data:{
+    selected:'A',
+    options:[
+      {text:'One',value:'A'},
+      {text:'Two',value:'B'},
+      {text:'Three',value:'C'}
+    ]
+  }
+})
+
+**v-model="selected"会使用绑定的初始化变量，options选择会绑定选项数组**  
+
+### 复选框  
+<input type="checkbox" v-model="toggle" true-value="yes" false-value="no">  
+复选框，指定了true-value和false-value，否则默认是布尔值。  
+
+### 单选按钮  
+<input type="radio" v-model="pick" v-bind:value="a">  
+
+### 下拉选择框使用字面量，而不是data中的数据选项时  
+<select v-model="selected">
+  <option v-bind:value="{ number:123}">123</option>
+</select>
+
+
+## 修饰符  
+### .lazy  
+默认情况下v-model在每次input时间处罚后将输入框的值与数据进行同步，你可以添加lazy修饰符，从而转变为change事件进行同步：  
+<input v-model.lazy="msg"> <!-- 使用change事件更新msg变量 -->  
+
+### .number
+如果需要将用户输入的值转换为数值类型可以添加number修饰符：  
+<input v-model.number="age" type="number">  
+
+### .trim修饰符  
+顾名思义，这个修饰符会把输入的前后空格丢弃  
+<input v-model.trim="msg">  
 
 
 
+## 组件基础  
+定义一个组件样例：  
+Vue.component('button-counter',{
+  data:function(){
+    return {
+      count:0
+    }
+  },
+  template:'<button v-on:click="count++">Your clicked me {{ count }} times.</button>"
+})  
+在这个案例中button-counter是自定义组件的名字。  
+
+
+我们可以在一个通过new Vue创建的Vue根实例中，把这个组件作为自定义元素来使用：  
+<div id="componenets-demo">
+   <button-counter></button-counter>
+</div>
+  
+new Vue({el:'#components-demo'}
+
+**因为组件是可以复用的Vue实例，所以他们与new Vue接收先用的选项，如data、computed、watch、methods以及生命周期钩子等，仅偶遇一个例外是el这样的根实例特有的选项。** 
+
+**组件内的变量在组件实例中是相互隔离的**  
+
+**组件中的data必须是一个函数，原因是组件的data选项必须是一个函数，因为这样才能返回对象的独立拷贝，如果不是，后续生成的相同组件的实例会共享这个变量。**  
+
+### 组件的组织  
+为了能在模板中使用组件，必须先注册以便Vue能够识别，注册分为***全局注册***和***局部注册***。
+通过Vue.component('my-component-global',{})注册的组件是全局组件。  
+
+
+### 通过 Prop 向子组件传递数据  
+Prop是你可以在组件上注册的一些自定义特性，但一个值传递给一个prop特性的时候，它就编程了一个组件实例的一个属性，例如给博文组件传递一个标题，我们可以使用props选项将其包含在该组件可接受的prop列表中：  
+
+Vue.component('blog-post',{props:['title'],template:'<h3>{{title}}</h3>})  
+一个组件默认可以拥有任意数量的prop，任何值都可以传递给任何prop，在上述模板汇总，你会发现我们能在组件实例中访问这个值，就如访问data中的值一样。  
+在一个prop被注册之后，我们可以把数据大工作一个自定义特性传递进来：
+<blog-post title="My Name is BlueICE"></blog-post>  
+
+
+
+然而在一个典型的应用中，你可能在data里有一个博文的数组：  
+new Vue({
+  el:'#blog-post-demo',
+  data:{
+    posts:[
+      {id:1,title:'first title'},
+      {id:2,title:'second  tilte'},
+      {id:3,title:'three title'}
+    ]
+  }
+})
+
+我们为每个博文渲染一个组件：  
+<blog-post
+  v-for="post in posts"
+  v-bind:key="post.id"
+  v-bind:title="post.title"
+  ></blog-post>
+
+我们可以使用v-bind来动态传递prop.  
+
+
+从一个url获取博文的样例：  
+<script src="https://unpkg.com/vue"></script>
+<div id="blog-post-demo" class="demo">
+    <blog-post
+       v-for="post in posts"
+       v-bind:key="post.id"
+       v-bind:title="post.title"
+     ></blog-post>
+</div>
+
+new Vue({
+  el:'#blog-post-demo',
+  data:{
+    posts:[]
+  },
+  created:function(){
+    var vm=this
+    fetch('https://jsonplaceholder.typeicode.com/posts')
+      .then(function(response){
+        return response.json() // 这个应该是json编码。
+      })
+      .then(function(data){
+        vm.posts=data // 这里更新了vm中的posts数组。
+      })
+  },
+})
+
+
+**声明组件时把完整post属性传递给组件**
+
+<blog-post 
+  v-for="post in posts"
+  v-bind:key="post.id"
+  v-bind:posts="post"
+  ></blog-post>  
+
+Vue.component('blog-post',{
+  props:['post'],
+  template:`
+    <div class="blog-post">
+      <h3>{{post.title}}</h3>
+      <div v-html="post.content"></div>
+    </div>
+  `
+
+
+在组件使用时，直接把属性post通过v-bind进行绑定，在组件中通过posts:['post']，传递进来，
+这样组件的模板汇总可以使用行政的post中新增的属性。  
+
+
+
+### 监听子组件的事件  
+在开发<blog-post>组件时，他们的一些功能可能要求我们和父组件进行沟通，例如我们增加一个按钮单独放大博文中的字体。
+
+在其父组件中，我们可以同构添加一个postFontSize数据属性来支撑这个功能：  
+new Vue({
+  el:'#blog-posts-events-demo',
+  data:{
+    posts:[/*...*/],
+    postFontSize:1
+  }
+})
+
+
+在模板汇总用postFontSize控制字体大小
+<div id="blog-posts-events-demo">
+  <div :style="{fontSize:postFontSize+'em'}">
+    <blog-post
+       v-for="post in posts"
+       v-bind:key="post.id"
+       v-bind:post="post"
+     ></blog-post>
+  </div>
+</div>
+
+组件中我们在模板中增加设置修改字体大小的按钮  
+Vue.component('blog-post',{
+  prosp:['post'],
+  template:`
+    <div class="blog-post">
+      <h3>{{post.title}}</h3>
+      <button>
+        Enlarge Text
+      </button>
+      <div v-html=post.content"></div>
+    </div>
+  `
+})
+
+**Vue提供了一个自定义事件系统来解决这个问题，父组件可以像处理natvie DOM事件一样通过v-on监听子组件实例的任意事件**  
+
+<blog-post
+  v-on:enlarge-txt="postFontSize+=01" <!-- 在组件使用时，直接响应v-on自定义事件，并执行对应的函数或直接写js代码 -->
+></blog-post>
+
+同时子组件可以通过调用内建的 $emit 方法并传入事件名称来触发一个事件：  
+<!-- 子组件代码声明时，可以绑定事件v-on:click，需要使用$emit('传递事件的名称') -->
+<button v-on:click="$emit('enlarge-text')">
+  Enlarge text
+</button>
+
+
+### 使用事件抛出一个值  
+例如我们要指定字体具体的大小，然后子组件的事件携带一个参数
+<button v-on:click="$emit('enlarge-text',0.1)">Enlarge Text</button>  
+
+在父组件监听这个事件的时候，我们可以通过$event访问到被抛出的这个值：  
+<blog-post
+  v-on:enlarge-text="postFontSize+=$event"
+></blog-post>
+ 
+
+
+### 在组件上使用 v-model  
+自定义事件也可以用于创建支持 v-model 的自定义输入组件
+<input v-model="searchText">
+
+等价于：
+<input 
+  v-bind:value="searchText"
+  v-on:input="searchText = $event.target.value"
+>
+
+
+**在组件上使用v-model也就是在在输入控件上同时使用了v-bind和v-on:input**  
+
+
+组件中的Input中绑定模型需要设置v-bind和v-on。  
+Vue.component('custom-input',{
+  props:['value'],
+  template:`
+    <input v-bind:value="value"
+    v-on:input="$emit('input',$event.target.value)"
+  `
+})
+
+现在v-mode就可在这个组件上正常工作了：  
+<custom-input v-model="searchText"></custom-input>  
+
+
+### 通过插槽分发内容  (<slot></slot>)
+和HTML元素一样，我们经常需要向一个组件传递内容，像这样：  
+<alert-box>
+  Something bad happened.
+</alert-box>
+
+Vue自定义的<slot>元素可以简化这件事：  
+  Vue.component('alert-box',{
+    template:`
+      <div class="demo-alert-box">
+        <strong>Error!</strong>
+        <slot></slot>
+      </div>
+    `
+  })
+
+
+
+### 动态组件  
+有时我们不同的组件之前切换是非常必要的，例如在一个多标签界面中：  
+我们可以通过Vue<component>元素加一个特殊逇is特性来实现。
+
+<component v-bind:is="currenttabComponent"></component>
+<!-- 组件会在currenttableComponent改变时改变 -->
+
+
+
+------
+**通过切换组件达到显示不同组件的功能**
+Vue.component('tab-home',{template:'<div>Home component</div>'})
+Vue.component('tab-posts',{tempalte:'<div>Posts component</div>})
+Vue.component('tab-archive',{tempalte:'<div>Archive component</div>'})
+
+new Vue({
+  el:'#dynamic-component-demo',
+  data:{
+    currentTab:'Home',
+    tabls:['Home','Posts','Archive']
+  },
+  computed:{
+    // 计算属性
+    currentTabComponent:function(){
+      return 'tab-'+this.currentTab.toLowerCase()
+    }
+  }
+})
+
+
+
+**HTML代码**  
+<script src="https://unpkg.com/vue"></script>
+<div id="dynamic-component-demo" class="demo">
+  <button
+          v-for="tab in tabls"
+          v-bin:key="tab"
+          v-bind:class="['tab-button',{active:currentTab===tab}]"
+          v-on:click="current=tab"
+   >{{tab}}</button>
+  
+  <component
+    v-bind:is="currentTabComponent" <!-- 这里绑定时使用了is -->
+    class="tab"
+  ></component>
+</div>
+
+
+组件注册  
+Vue.component('component-a',{})
+
+new Vue({el:'#app'})
+
+<div id="app">
+   <compoent-a></component-a>
+   <compoent-b></component-b>
+   <compoent-c></component-c>
+</div>
+
+1）首先注册组件
+2）生成Vue实例
+3）确保在html中的Vue注册的根id中包含了组件使用代码。
+
+
+### 组件的局部注册  
+
+var ComponentA={}
+var ComponentB={}
+
+new Vue({
+  el:'#app',
+  components:{
+    'component-a':ComponentA,
+    'component-b':ComponentB
+  }
+})
+
+**注意局部注册的组件在其子组件中是不可用的，流入你希望在ComponentA在ComponentB中使用需要另外一种写法**  
+var ComponenetA={...}
+
+var ComponentB={
+  componenets:{
+    'component-a':ComponentA
+  }
+}
+
+
+
+### 模块系统  
+如果把模块放在components目录中，加载文件使用.js或.vue文件
+
+CompoenetB.vue文件中：
+import ComponenetA from './ComponenetA'
+import ComponenetC from './ComponenetC'
+
+export default {
+  components:{
+    ComponentA,
+    ComponenetC
+  }
+}
+
+这样导入模块之后就可以在ComponentB的模板中使用了。  
+
+
+### 基础组件的自动化全局注册  
+有时我们在项目中输入框或按钮之类的是相对通用的，欧式我们会把他们称作基础组件，会在各组件中频繁的使用。  
+
+如果使用webpack那么使用require.content只全局注册这些非常通用的基础组件，例如通过src/main.js导入。  
+
+
+import Vue from 'vue'
+import upperFirst from 'lodash/upperFirst'
+import camelCase from 'lodash/camelCase'
+
+const requireComponent=require.content(
+  './components',
+  false,
+  /Base[A-Z]\w+\.(vue|js)$/
+)
+
+requireComponent.Keys().forEach(fileName=>{
+  const componentConfig=requireComponenet(fileName)
+  const componentName=upperFirst(
+    camelCase(
+      fileName
+        .split('/')
+        .pop()
+        .replace(/\.\w+$/,'')
+    )
+  )
+})
+
+// 注册全局组件
+Vue.component(
+  componentName,
+  componentConfig.default||componentConfig
+)
+
+
+**全局注册的行文必须在根Vue实例（new Vue）创建之前发生**  
+
+
+
+### Prop类型  
+通常我们会通过数组的方式列出prop。
+props:['title','likes','isPublished','commmentIds','author']
+
+但是有时希望指定props中的属性类型，我们采用如下的方式：  
+props:{
+  title:String,
+  likes:Number,
+  ispublished:Boolean,
+  commentIds:Array,
+  author:Object,
+  callback:Function,
+  contactsPromise:Promise
+}
+
+
+### 传递静态或动态Prop  
+我们之前已经可以像属性一样传递prop传入一个静态的值：  
+<blog-post title="My Name is BlueICE"></blog-post>
+
+我们可以可以通过v-bind动态绑定prop:
+<blog-post v-bind:title="post.title"></blog-post>
+
+<blog-post v-bind:title="post.title+'by'+post.author.name"></blog-post>
+
+**任何类型都可以传递给prop**  
+
+
+### prop传入一个数字  
+<blog-post v-bind:likes="42"></blog-post>
+<blog-post v-bind:likes="post.likes"></blog-post>
+
+
+### 传入一个布尔值
+<blog-post is-published></blog-post>
+<blog-post v-bind:is-published="false"></blog-post>
+<blog-post v-bind:is-published="post.isPublished"></blog-post>
+
+
+### 传入一个数组  
+<blog-post v-bind:comment-ids="[1,3,5]"></blog-psot>
+  
+  
+### 单向数据流  
+所有的prop都使父子prop之间形成了一个单向下行的绑定，父级prop的更新会向下流动到子组件中，但反之则不行。
+
+
+### prop验证  
+Vue.component('my-component',{
+  props:{
+    propA:Number,
+    propB:[String,Number],
+    PropC:{
+      type:String,
+      required:true
+    },
+    propD:{
+      type:Number,
+      default:100
+    },
+    propF:{
+      validator:function(value){
+        return ['success','warning','danger'].indexOf(value)!==-1
+      }
+    }
+  }
+})
 
 
 
